@@ -1,5 +1,5 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -108,15 +108,52 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     </Card>
   );
 
-  const renderVirtualizedItems = (cellItems: KanbanItem[]) => {
+  const VirtualizedItemList = ({ cellItems }: { cellItems: KanbanItem[] }) => {
+    const parentRef = React.useRef<HTMLDivElement>(null);
+
+    const virtualizer = useVirtualizer({
+      count: cellItems.length,
+      getScrollElement: () => parentRef.current,
+      estimateSize: () => 120, // Estimated height of each item
+      overscan: 5,
+    });
+
     if (cellItems.length === 0) return null;
-    
+
     return (
-      <ScrollArea className="h-[400px] w-full">
-        <div className="p-2">
-          {cellItems.map(renderKanbanItem)}
+      <div
+        ref={parentRef}
+        className="h-[400px] overflow-auto"
+        style={{
+          contain: 'strict',
+        }}
+      >
+        <div
+          style={{
+            height: `${virtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {virtualizer.getVirtualItems().map((virtualItem) => (
+            <div
+              key={virtualItem.key}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualItem.size}px`,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+            >
+              <div className="p-2">
+                {renderKanbanItem(cellItems[virtualItem.index])}
+              </div>
+            </div>
+          ))}
         </div>
-      </ScrollArea>
+      </div>
     );
   };
 
@@ -211,7 +248,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               {cellItems.length} item{cellItems.length !== 1 ? 's' : ''}
                             </div>
                           )}
-                          {renderVirtualizedItems(cellItems)}
+                          <VirtualizedItemList cellItems={cellItems} />
                         </div>
                       )}
                     </div>
