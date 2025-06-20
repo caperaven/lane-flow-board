@@ -1,24 +1,9 @@
 
 import React, { useState } from 'react';
-import {
-  Box,
-  Paper,
-  Typography,
-  IconButton,
-  Collapse,
-  Chip,
-  Card,
-  CardContent,
-  Grid,
-  Divider,
-  Stack,
-} from '@mui/material';
-import {
-  ExpandMore,
-  ExpandLess,
-  KeyboardArrowRight,
-  KeyboardArrowDown,
-} from '@mui/icons-material';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 
 export interface KanbanItem {
   id: string;
@@ -85,171 +70,134 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const getPriorityColor = (priority?: string) => {
     switch (priority) {
       case 'high':
-        return '#f44336';
+        return 'bg-red-500';
       case 'medium':
-        return '#ff9800';
+        return 'bg-orange-500';
       case 'low':
-        return '#4caf50';
+        return 'bg-green-500';
       default:
-        return '#9e9e9e';
+        return 'bg-gray-500';
     }
   };
 
   const renderKanbanItem = (item: KanbanItem) => (
     <Card
       key={item.id}
-      sx={{
-        mb: 1,
-        cursor: 'pointer',
-        '&:hover': {
-          boxShadow: 3,
-        },
-        borderLeft: `4px solid ${getPriorityColor(item.priority)}`,
-      }}
+      className="mb-2 cursor-pointer hover:shadow-md transition-shadow border-l-4"
+      style={{ borderLeftColor: item.priority === 'high' ? '#ef4444' : item.priority === 'medium' ? '#f97316' : '#22c55e' }}
     >
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {item.title}
-        </Typography>
+      <CardContent className="p-3">
+        <h4 className="font-semibold text-sm mb-1">{item.title}</h4>
         {item.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {item.description}
-          </Typography>
+          <p className="text-xs text-gray-600 mb-2">{item.description}</p>
         )}
-        <Stack direction="row" spacing={1} alignItems="center">
+        <div className="flex flex-wrap gap-1">
           {item.priority && (
-            <Chip
-              label={item.priority.toUpperCase()}
-              size="small"
-              sx={{
-                backgroundColor: getPriorityColor(item.priority),
-                color: 'white',
-                fontSize: '0.7rem',
-                height: '20px',
-              }}
-            />
+            <Badge variant="secondary" className={`text-white text-xs ${getPriorityColor(item.priority)}`}>
+              {item.priority.toUpperCase()}
+            </Badge>
           )}
           {item.assignee && (
-            <Chip
-              label={item.assignee}
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: '0.7rem', height: '20px' }}
-            />
+            <Badge variant="outline" className="text-xs">
+              {item.assignee}
+            </Badge>
           )}
-        </Stack>
+        </div>
       </CardContent>
     </Card>
   );
 
   return (
-    <Box sx={{ p: 2, backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-      <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
-        Kanban Board
-      </Typography>
+    <div className="p-4 bg-gray-50 min-h-screen">
+      <h1 className="text-3xl font-bold mb-6 text-blue-600">Kanban Board</h1>
       
-      <Paper elevation={2} sx={{ overflow: 'hidden' }}>
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Column Headers */}
-        <Box sx={{ display: 'flex', backgroundColor: '#e3f2fd', borderBottom: '2px solid #1976d2' }}>
-          <Box sx={{ width: '200px', p: 2, borderRight: '1px solid #ddd' }}>
-            <Typography variant="h6" fontWeight="bold">
-              Swim Lanes
-            </Typography>
-          </Box>
+        <div className="flex bg-blue-50 border-b-2 border-blue-200">
+          <div className="w-48 p-4 border-r border-gray-200">
+            <h2 className="text-lg font-semibold">Swim Lanes</h2>
+          </div>
           {columns.map((column) => (
-            <Box
+            <div
               key={column.id}
-              sx={{
-                flex: collapsedColumns.has(column.id) ? '0 0 60px' : 1,
-                p: 2,
-                borderRight: '1px solid #ddd',
-                backgroundColor: column.color || '#e3f2fd',
-                transition: 'flex 0.3s ease',
-              }}
+              className={`${
+                collapsedColumns.has(column.id) ? 'w-16' : 'flex-1'
+              } p-4 border-r border-gray-200 transition-all duration-300`}
+              style={{ backgroundColor: column.color || '#e3f2fd' }}
             >
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <IconButton
-                  size="small"
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => toggleColumn(column.id)}
-                  sx={{ p: 0.5 }}
+                  className="p-1 h-6 w-6"
                 >
                   {collapsedColumns.has(column.id) ? (
-                    <KeyboardArrowRight />
+                    <ChevronRight className="h-4 w-4" />
                   ) : (
-                    <KeyboardArrowDown />
+                    <ChevronDown className="h-4 w-4" />
                   )}
-                </IconButton>
+                </Button>
                 {!collapsedColumns.has(column.id) && (
-                  <Typography variant="h6" fontWeight="bold">
-                    {column.title}
-                  </Typography>
+                  <h3 className="text-lg font-semibold">{column.title}</h3>
                 )}
-              </Stack>
-            </Box>
+              </div>
+            </div>
           ))}
-        </Box>
+        </div>
 
         {/* Swim Lanes and Items */}
         {swimLanes.map((swimLane) => (
-          <Box key={swimLane.id}>
+          <div key={swimLane.id}>
             {/* Swim Lane Header */}
-            <Box
-              sx={{
-                display: 'flex',
-                backgroundColor: swimLane.color || '#fff3e0',
-                borderBottom: '1px solid #ddd',
-              }}
+            <div
+              className="flex border-b border-gray-200"
+              style={{ backgroundColor: swimLane.color || '#fff3e0' }}
             >
-              <Box
-                sx={{
-                  width: '200px',
-                  p: 2,
-                  borderRight: '1px solid #ddd',
-                  cursor: 'pointer',
-                }}
+              <div
+                className="w-48 p-4 border-r border-gray-200 cursor-pointer"
                 onClick={() => toggleSwimLane(swimLane.id)}
               >
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <IconButton size="small" sx={{ p: 0.5 }}>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="p-1 h-6 w-6"
+                  >
                     {collapsedSwimLanes.has(swimLane.id) ? (
-                      <ExpandMore />
+                      <ChevronUp className="h-4 w-4" />
                     ) : (
-                      <ExpandLess />
+                      <ChevronDown className="h-4 w-4" />
                     )}
-                  </IconButton>
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    {swimLane.title}
-                  </Typography>
-                </Stack>
-              </Box>
+                  </Button>
+                  <h3 className="text-base font-semibold">{swimLane.title}</h3>
+                </div>
+              </div>
               
               {/* Column cells for this swim lane */}
               {columns.map((column) => (
-                <Box
+                <div
                   key={`${swimLane.id}-${column.id}`}
-                  sx={{
-                    flex: collapsedColumns.has(column.id) ? '0 0 60px' : 1,
-                    p: collapsedColumns.has(column.id) ? 1 : 2,
-                    borderRight: '1px solid #ddd',
-                    minHeight: collapsedSwimLanes.has(swimLane.id) ? '60px' : '200px',
-                    backgroundColor: '#fafafa',
-                    transition: 'all 0.3s ease',
-                  }}
+                  className={`${
+                    collapsedColumns.has(column.id) ? 'w-16' : 'flex-1'
+                  } ${
+                    collapsedColumns.has(column.id) ? 'p-2' : 'p-4'
+                  } ${
+                    collapsedSwimLanes.has(swimLane.id) ? 'h-16' : 'min-h-[200px]'
+                  } border-r border-gray-200 bg-gray-50 transition-all duration-300`}
                 >
-                  <Collapse in={!collapsedSwimLanes.has(swimLane.id)}>
-                    {!collapsedColumns.has(column.id) && (
-                      <Box sx={{ minHeight: '150px' }}>
-                        {getItemsForCell(column.id, swimLane.id).map(renderKanbanItem)}
-                      </Box>
-                    )}
-                  </Collapse>
-                </Box>
+                  {!collapsedSwimLanes.has(swimLane.id) && !collapsedColumns.has(column.id) && (
+                    <div className="min-h-[150px]">
+                      {getItemsForCell(column.id, swimLane.id).map(renderKanbanItem)}
+                    </div>
+                  )}
+                </div>
               ))}
-            </Box>
-          </Box>
+            </div>
+          </div>
         ))}
-      </Paper>
-    </Box>
+      </div>
+    </div>
   );
 };
 
