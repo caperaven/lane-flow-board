@@ -16,82 +16,55 @@ const KanbanDemo = () => {
     { id: 'backend', title: 'Backend Team', color: '#fce4ec' },
     { id: 'design', title: 'Design Team', color: '#f9fbe7' },
     { id: 'qa', title: 'QA Team', color: '#fff8e1' },
+    { id: 'devops', title: 'DevOps Team', color: '#f3e5f5' },
+    { id: 'mobile', title: 'Mobile Team', color: '#e0f2f1' },
   ];
 
-  const items: KanbanItem[] = [
-    {
-      id: '1',
-      title: 'User Authentication',
-      description: 'Implement login and registration functionality',
-      assignee: 'John Doe',
-      priority: 'high',
-      swimLane: 'frontend',
-      column: 'inprogress',
-    },
-    {
-      id: '2',
-      title: 'API Endpoints',
-      description: 'Create REST API for user management',
-      assignee: 'Jane Smith',
-      priority: 'high',
-      swimLane: 'backend',
-      column: 'todo',
-    },
-    {
-      id: '3',
-      title: 'UI Mockups',
-      description: 'Design dashboard layout and components',
-      assignee: 'Mike Johnson',
-      priority: 'medium',
-      swimLane: 'design',
-      column: 'review',
-    },
-    {
-      id: '4',
-      title: 'Database Schema',
-      description: 'Design and implement database structure',
-      assignee: 'Sarah Wilson',
-      priority: 'high',
-      swimLane: 'backend',
-      column: 'done',
-    },
-    {
-      id: '5',
-      title: 'Component Library',
-      description: 'Build reusable React components',
-      assignee: 'Alex Brown',
-      priority: 'medium',
-      swimLane: 'frontend',
-      column: 'backlog',
-    },
-    {
-      id: '6',
-      title: 'Test Automation',
-      description: 'Set up automated testing framework',
-      assignee: 'Emily Davis',
-      priority: 'low',
-      swimLane: 'qa',
-      column: 'todo',
-    },
-    {
-      id: '7',
-      title: 'Performance Testing',
-      description: 'Load testing and optimization',
-      assignee: 'Chris Lee',
-      priority: 'medium',
-      swimLane: 'qa',
-      column: 'backlog',
-    },
-    {
-      id: '8',
-      title: 'Mobile Responsive',
-      description: 'Ensure app works on mobile devices',
-      assignee: 'Anna Taylor',
-      priority: 'high',
-      swimLane: 'frontend',
-      column: 'review',
-    },
-  ];
+  // Generate 1000 items for testing virtualization
+  const generateItems = (): KanbanItem[] => {
+    const items: KanbanItem[] = [];
+    const priorities: ('low' | 'medium' | 'high')[] = ['low', 'medium', 'high'];
+    const assignees = [
+      'John Doe', 'Jane Smith', 'Mike Johnson', 'Sarah Wilson', 
+      'Alex Brown', 'Emily Davis', 'Chris Lee', 'Anna Taylor',
+      'David Miller', 'Lisa Garcia', 'Tom Anderson', 'Maria Lopez'
+    ];
+    
+    const taskTemplates = [
+      { title: 'User Authentication', description: 'Implement login and registration functionality' },
+      { title: 'API Endpoints', description: 'Create REST API for user management' },
+      { title: 'UI Components', description: 'Build reusable React components' },
+      { title: 'Database Schema', description: 'Design and implement database structure' },
+      { title: 'Performance Testing', description: 'Load testing and optimization' },
+      { title: 'Mobile Responsive', description: 'Ensure app works on mobile devices' },
+      { title: 'Security Audit', description: 'Review and fix security vulnerabilities' },
+      { title: 'Bug Fixes', description: 'Resolve reported issues and bugs' },
+      { title: 'Code Review', description: 'Review code quality and standards' },
+      { title: 'Documentation', description: 'Write technical documentation' },
+    ];
+
+    for (let i = 1; i <= 1000; i++) {
+      const template = taskTemplates[i % taskTemplates.length];
+      const swimLane = swimLanes[i % swimLanes.length];
+      const column = columns[i % columns.length];
+      const priority = priorities[i % priorities.length];
+      const assignee = assignees[i % assignees.length];
+
+      items.push({
+        id: `item-${i}`,
+        title: `${template.title} #${i}`,
+        description: template.description,
+        assignee,
+        priority,
+        swimLane: swimLane.id,
+        column: column.id,
+      });
+    }
+
+    return items;
+  };
+
+  const items = generateItems();
 
   const handleItemMove = (itemId: string, newColumn: string, newSwimLane: string) => {
     console.log(`Moving item ${itemId} to column ${newColumn} in swim lane ${newSwimLane}`);

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 
 export interface KanbanItem {
@@ -107,9 +108,23 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     </Card>
   );
 
+  const renderVirtualizedItems = (cellItems: KanbanItem[]) => {
+    if (cellItems.length === 0) return null;
+    
+    return (
+      <ScrollArea className="h-[400px] w-full">
+        <div className="p-2">
+          {cellItems.map(renderKanbanItem)}
+        </div>
+      </ScrollArea>
+    );
+  };
+
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-blue-600">Kanban Board</h1>
+      <h1 className="text-3xl font-bold mb-6 text-blue-600">
+        Kanban Board ({items.length} items)
+      </h1>
       
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Column Headers */}
@@ -147,55 +162,65 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         </div>
 
         {/* Swim Lanes and Items */}
-        {swimLanes.map((swimLane) => (
-          <div key={swimLane.id}>
-            {/* Swim Lane Header */}
-            <div
-              className="flex border-b border-gray-200"
-              style={{ backgroundColor: swimLane.color || '#fff3e0' }}
-            >
+        <ScrollArea className="h-[calc(100vh-200px)]">
+          {swimLanes.map((swimLane) => (
+            <div key={swimLane.id}>
+              {/* Swim Lane Header */}
               <div
-                className="w-48 p-4 border-r border-gray-200 cursor-pointer"
-                onClick={() => toggleSwimLane(swimLane.id)}
+                className="flex border-b border-gray-200"
+                style={{ backgroundColor: swimLane.color || '#fff3e0' }}
               >
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1 h-6 w-6"
-                  >
-                    {collapsedSwimLanes.has(swimLane.id) ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <h3 className="text-base font-semibold">{swimLane.title}</h3>
-                </div>
-              </div>
-              
-              {/* Column cells for this swim lane */}
-              {columns.map((column) => (
                 <div
-                  key={`${swimLane.id}-${column.id}`}
-                  className={`${
-                    collapsedColumns.has(column.id) ? 'w-16' : 'flex-1'
-                  } ${
-                    collapsedColumns.has(column.id) ? 'p-2' : 'p-4'
-                  } ${
-                    collapsedSwimLanes.has(swimLane.id) ? 'h-16' : 'min-h-[200px]'
-                  } border-r border-gray-200 bg-gray-50 transition-all duration-300`}
+                  className="w-48 p-4 border-r border-gray-200 cursor-pointer"
+                  onClick={() => toggleSwimLane(swimLane.id)}
                 >
-                  {!collapsedSwimLanes.has(swimLane.id) && !collapsedColumns.has(column.id) && (
-                    <div className="min-h-[150px]">
-                      {getItemsForCell(column.id, swimLane.id).map(renderKanbanItem)}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-1 h-6 w-6"
+                    >
+                      {collapsedSwimLanes.has(swimLane.id) ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <h3 className="text-base font-semibold">{swimLane.title}</h3>
+                  </div>
                 </div>
-              ))}
+                
+                {/* Column cells for this swim lane */}
+                {columns.map((column) => {
+                  const cellItems = getItemsForCell(column.id, swimLane.id);
+                  return (
+                    <div
+                      key={`${swimLane.id}-${column.id}`}
+                      className={`${
+                        collapsedColumns.has(column.id) ? 'w-16' : 'flex-1'
+                      } ${
+                        collapsedColumns.has(column.id) ? 'p-2' : 'p-4'
+                      } ${
+                        collapsedSwimLanes.has(swimLane.id) ? 'h-16' : 'min-h-[200px]'
+                      } border-r border-gray-200 bg-gray-50 transition-all duration-300`}
+                    >
+                      {!collapsedSwimLanes.has(swimLane.id) && !collapsedColumns.has(column.id) && (
+                        <div className="h-full">
+                          {cellItems.length > 0 && (
+                            <div className="mb-2 text-xs text-gray-500">
+                              {cellItems.length} item{cellItems.length !== 1 ? 's' : ''}
+                            </div>
+                          )}
+                          {renderVirtualizedItems(cellItems)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </ScrollArea>
       </div>
     </div>
   );
