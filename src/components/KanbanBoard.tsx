@@ -168,8 +168,9 @@ const DroppableCell: React.FC<{
   swimLaneId: string;
   items: KanbanItem[];
   isCollapsed: boolean;
+  columnWidth: string;
   children: React.ReactNode;
-}> = ({ columnId, swimLaneId, items, isCollapsed, children }) => {
+}> = ({ columnId, swimLaneId, items, isCollapsed, columnWidth, children }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `${columnId}-${swimLaneId}`,
     data: {
@@ -182,14 +183,14 @@ const DroppableCell: React.FC<{
     <Box
       ref={setNodeRef}
       sx={{
-        width: isCollapsed ? 64 : 'calc((100% - 200px) / var(--column-count))',
+        width: columnWidth,
         p: isCollapsed ? 1 : 2,
         minHeight: 200,
         borderRight: 1,
         borderColor: 'divider',
         bgcolor: isOver ? 'action.hover' : 'grey.50',
         transition: 'all 0.3s',
-        '--column-count': 'var(--total-columns)',
+        flexShrink: 0,
       }}
     >
       {children}
@@ -292,6 +293,18 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     return items.find(item => item.id === id);
   };
 
+  // Calculate column widths
+  const swimLaneWidth = 200;
+  const collapsedColumnWidth = 64;
+  const expandedColumns = columns.filter(col => !collapsedColumns.has(col.id));
+  const collapsedColumnCount = columns.length - expandedColumns.length;
+  const availableWidth = `calc(100% - ${swimLaneWidth}px - ${collapsedColumnCount * collapsedColumnWidth}px)`;
+  const expandedColumnWidth = expandedColumns.length > 0 ? `calc(${availableWidth} / ${expandedColumns.length})` : '0px';
+
+  const getColumnWidth = (columnId: string) => {
+    return collapsedColumns.has(columnId) ? `${collapsedColumnWidth}px` : expandedColumnWidth;
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
@@ -370,19 +383,20 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         <Paper sx={{ overflow: 'hidden' }}>
           {/* Column Headers */}
           <Box sx={{ display: 'flex', bgcolor: 'primary.light', borderBottom: 2, borderColor: 'primary.main' }}>
-            <Box sx={{ width: 200, p: 2, borderRight: 1, borderColor: 'divider' }}>
+            <Box sx={{ width: `${swimLaneWidth}px`, p: 2, borderRight: 1, borderColor: 'divider', flexShrink: 0 }}>
               <Typography variant="h6" fontWeight="bold">Swim Lanes</Typography>
             </Box>
             {columns.map((column) => (
               <Box
                 key={column.id}
                 sx={{
-                  width: collapsedColumns.has(column.id) ? 64 : 'calc((100% - 200px) / ' + columns.length + ')',
+                  width: getColumnWidth(column.id),
                   p: 2,
                   borderRight: 1,
                   borderColor: 'divider',
                   bgcolor: column.color || 'primary.light',
                   transition: 'width 0.3s',
+                  flexShrink: 0,
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -407,12 +421,13 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 <Box sx={{ display: 'flex', borderBottom: 1, borderColor: 'divider' }}>
                   <Box
                     sx={{
-                      width: 200,
+                      width: `${swimLaneWidth}px`,
                       p: 2,
                       borderRight: 1,
                       borderColor: 'divider',
                       bgcolor: swimLane.color || 'warning.light',
                       cursor: 'pointer',
+                      flexShrink: 0,
                     }}
                     onClick={() => toggleSwimLane(swimLane.id)}
                   >
@@ -436,6 +451,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         swimLaneId={swimLane.id}
                         items={cellItems}
                         isCollapsed={isColumnCollapsed}
+                        columnWidth={getColumnWidth(column.id)}
                       >
                         {!isSwimLaneCollapsed && !isColumnCollapsed && (
                           <Box sx={{ height: '100%' }}>
