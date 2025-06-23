@@ -1,13 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Box,
   Paper,
   Typography,
   IconButton,
   Chip,
-  Grid,
   Container,
 } from '@mui/material';
 import {
@@ -18,8 +16,6 @@ import {
 import {
   DndContext,
   DragEndEvent,
-  DragStartEvent,
-  DragOverEvent,
   useSensor,
   useSensors,
   PointerSensor,
@@ -198,57 +194,6 @@ const DroppableCell: React.FC<{
   );
 };
 
-const VirtualizedItemList = ({ cellItems }: { cellItems: KanbanItem[] }) => {
-  const parentRef = React.useRef<HTMLDivElement>(null);
-
-  const virtualizer = useVirtualizer({
-    count: cellItems.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 120,
-    overscan: 5,
-  });
-
-  if (cellItems.length === 0) return null;
-
-  return (
-    <SortableContext items={cellItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
-      <Box
-        ref={parentRef}
-        sx={{
-          height: 400,
-          overflow: 'auto',
-          contain: 'strict',
-        }}
-      >
-        <Box
-          sx={{
-            height: `${virtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
-          }}
-        >
-          {virtualizer.getVirtualItems().map((virtualItem) => (
-            <Box
-              key={virtualItem.key}
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: `${virtualItem.size}px`,
-                transform: `translateY(${virtualItem.start}px)`,
-                p: 1,
-              }}
-            >
-              <DraggableKanbanItem item={cellItems[virtualItem.index]} />
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    </SortableContext>
-  );
-};
-
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
   items,
   columns,
@@ -261,7 +206,11 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [collapsedSwimLanes, setCollapsedSwimLanes] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor)
   );
 
@@ -305,13 +254,24 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     return collapsedColumns.has(columnId) ? `${collapsedColumnWidth}px` : expandedColumnWidth;
   };
 
+  // Create a single sortable context for all items to enable cross-column dragging
+  const allItemIds = useMemo(() => items.map(item => item.id), [items]);
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (!over) return;
+    console.log('Drag end event:', { active: active.id, over: over?.id, overData: over?.data?.current });
+    
+    if (!over) {
+      console.log('No drop target found');
+      return;
+    }
 
     const draggedItem = findItemById(active.id as string);
-    if (!draggedItem) return;
+    if (!draggedItem) {
+      console.log('Dragged item not found:', active.id);
+      return;
+    }
 
     // Get target location from the droppable's data
     const overData = over.data.current;
@@ -319,12 +279,13 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     const targetSwimLane = overData?.swimLane;
 
     if (!targetColumn || !targetSwimLane) {
-      console.log('No valid drop target found', { targetColumn, targetSwimLane });
+      console.log('No valid drop target found', { targetColumn, targetSwimLane, overData });
       return;
     }
 
     // Don't do anything if dropping in the same location
     if (draggedItem.column === targetColumn && draggedItem.swimLane === targetSwimLane) {
+      console.log('Dropped in same location, no action needed');
       return;
     }
 
@@ -380,97 +341,101 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         collisionDetection={closestCorners}
         onDragEnd={handleDragEnd}
       >
-        <Paper sx={{ overflow: 'hidden' }}>
-          {/* Column Headers */}
-          <Box sx={{ display: 'flex', bgcolor: 'primary.light', borderBottom: 2, borderColor: 'primary.main' }}>
-            <Box sx={{ width: `${swimLaneWidth}px`, p: 2, borderRight: 1, borderColor: 'divider', flexShrink: 0 }}>
-              <Typography variant="h6" fontWeight="bold">Swim Lanes</Typography>
-            </Box>
-            {columns.map((column) => (
-              <Box
-                key={column.id}
-                sx={{
-                  width: getColumnWidth(column.id),
-                  p: 2,
-                  borderRight: 1,
-                  borderColor: 'divider',
-                  bgcolor: column.color || 'primary.light',
-                  transition: 'width 0.3s',
-                  flexShrink: 0,
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconButton
-                    size="small"
-                    onClick={() => toggleColumn(column.id)}
-                  >
-                    {collapsedColumns.has(column.id) ? <ChevronRight /> : <ExpandMore />}
-                  </IconButton>
-                  {!collapsedColumns.has(column.id) && (
-                    <Typography variant="h6" fontWeight="bold">{column.title}</Typography>
-                  )}
-                </Box>
+        <SortableContext items={allItemIds} strategy={verticalListSortingStrategy}>
+          <Paper sx={{ overflow: 'hidden' }}>
+            {/* Column Headers */}
+            <Box sx={{ display: 'flex', bgcolor: 'primary.light', borderBottom: 2, borderColor: 'primary.main' }}>
+              <Box sx={{ width: `${swimLaneWidth}px`, p: 2, borderRight: 1, borderColor: 'divider', flexShrink: 0 }}>
+                <Typography variant="h6" fontWeight="bold">Swim Lanes</Typography>
               </Box>
-            ))}
-          </Box>
-
-          {/* Swim Lanes and Items */}
-          <Box sx={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}>
-            {swimLanes.map((swimLane) => (
-              <Box key={swimLane.id}>
-                <Box sx={{ display: 'flex', borderBottom: 1, borderColor: 'divider' }}>
-                  <Box
-                    sx={{
-                      width: `${swimLaneWidth}px`,
-                      p: 2,
-                      borderRight: 1,
-                      borderColor: 'divider',
-                      bgcolor: swimLane.color || 'warning.light',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                    onClick={() => toggleSwimLane(swimLane.id)}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconButton size="small">
-                        {collapsedSwimLanes.has(swimLane.id) ? <ExpandLess /> : <ExpandMore />}
-                      </IconButton>
-                      <Typography variant="subtitle1" fontWeight="bold">{swimLane.title}</Typography>
-                    </Box>
+              {columns.map((column) => (
+                <Box
+                  key={column.id}
+                  sx={{
+                    width: getColumnWidth(column.id),
+                    p: 2,
+                    borderRight: 1,
+                    borderColor: 'divider',
+                    bgcolor: column.color || 'primary.light',
+                    transition: 'width 0.3s',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconButton
+                      size="small"
+                      onClick={() => toggleColumn(column.id)}
+                    >
+                      {collapsedColumns.has(column.id) ? <ChevronRight /> : <ExpandMore />}
+                    </IconButton>
+                    {!collapsedColumns.has(column.id) && (
+                      <Typography variant="h6" fontWeight="bold">{column.title}</Typography>
+                    )}
                   </Box>
-                  
-                  {columns.map((column) => {
-                    const cellItems = getItemsForCell(column.id, swimLane.id);
-                    const isColumnCollapsed = collapsedColumns.has(column.id);
-                    const isSwimLaneCollapsed = collapsedSwimLanes.has(swimLane.id);
-                    
-                    return (
-                      <DroppableCell
-                        key={`${swimLane.id}-${column.id}`}
-                        columnId={column.id}
-                        swimLaneId={swimLane.id}
-                        items={cellItems}
-                        isCollapsed={isColumnCollapsed}
-                        columnWidth={getColumnWidth(column.id)}
-                      >
-                        {!isSwimLaneCollapsed && !isColumnCollapsed && (
-                          <Box sx={{ height: '100%' }}>
-                            {cellItems.length > 0 && (
-                              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                                {cellItems.length} item{cellItems.length !== 1 ? 's' : ''}
-                              </Typography>
-                            )}
-                            <VirtualizedItemList cellItems={cellItems} />
-                          </Box>
-                        )}
-                      </DroppableCell>
-                    );
-                  })}
                 </Box>
-              </Box>
-            ))}
-          </Box>
-        </Paper>
+              ))}
+            </Box>
+
+            {/* Swim Lanes and Items */}
+            <Box sx={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}>
+              {swimLanes.map((swimLane) => (
+                <Box key={swimLane.id}>
+                  <Box sx={{ display: 'flex', borderBottom: 1, borderColor: 'divider' }}>
+                    <Box
+                      sx={{
+                        width: `${swimLaneWidth}px`,
+                        p: 2,
+                        borderRight: 1,
+                        borderColor: 'divider',
+                        bgcolor: swimLane.color || 'warning.light',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                      onClick={() => toggleSwimLane(swimLane.id)}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <IconButton size="small">
+                          {collapsedSwimLanes.has(swimLane.id) ? <ExpandLess /> : <ExpandMore />}
+                        </IconButton>
+                        <Typography variant="subtitle1" fontWeight="bold">{swimLane.title}</Typography>
+                      </Box>
+                    </Box>
+                    
+                    {columns.map((column) => {
+                      const cellItems = getItemsForCell(column.id, swimLane.id);
+                      const isColumnCollapsed = collapsedColumns.has(column.id);
+                      const isSwimLaneCollapsed = collapsedSwimLanes.has(swimLane.id);
+                      
+                      return (
+                        <DroppableCell
+                          key={`${swimLane.id}-${column.id}`}
+                          columnId={column.id}
+                          swimLaneId={swimLane.id}
+                          items={cellItems}
+                          isCollapsed={isColumnCollapsed}
+                          columnWidth={getColumnWidth(column.id)}
+                        >
+                          {!isSwimLaneCollapsed && !isColumnCollapsed && (
+                            <Box sx={{ height: '100%', maxHeight: 400, overflow: 'auto' }}>
+                              {cellItems.length > 0 && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                                  {cellItems.length} item{cellItems.length !== 1 ? 's' : ''}
+                                </Typography>
+                              )}
+                              {cellItems.map((item) => (
+                                <DraggableKanbanItem key={item.id} item={item} />
+                              ))}
+                            </Box>
+                          )}
+                        </DroppableCell>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Paper>
+        </SortableContext>
       </DndContext>
     </Container>
   );
