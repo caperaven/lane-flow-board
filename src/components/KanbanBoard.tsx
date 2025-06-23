@@ -25,6 +25,7 @@ import {
   PointerSensor,
   KeyboardSensor,
   closestCorners,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -162,6 +163,40 @@ const DraggableKanbanItem: React.FC<{ item: KanbanItem }> = ({ item }) => {
   );
 };
 
+const DroppableCell: React.FC<{
+  columnId: string;
+  swimLaneId: string;
+  items: KanbanItem[];
+  isCollapsed: boolean;
+  children: React.ReactNode;
+}> = ({ columnId, swimLaneId, items, isCollapsed, children }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `${columnId}-${swimLaneId}`,
+    data: {
+      column: columnId,
+      swimLane: swimLaneId,
+    },
+  });
+
+  return (
+    <Box
+      ref={setNodeRef}
+      sx={{
+        width: isCollapsed ? 64 : 'calc((100% - 200px) / var(--column-count))',
+        p: isCollapsed ? 1 : 2,
+        minHeight: 200,
+        borderRight: 1,
+        borderColor: 'divider',
+        bgcolor: isOver ? 'action.hover' : 'grey.50',
+        transition: 'all 0.3s',
+        '--column-count': 'var(--total-columns)',
+      }}
+    >
+      {children}
+    </Box>
+  );
+};
+
 const VirtualizedItemList = ({ cellItems }: { cellItems: KanbanItem[] }) => {
   const parentRef = React.useRef<HTMLDivElement>(null);
 
@@ -257,18 +292,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     return items.find(item => item.id === id);
   };
 
-  const getDropZoneFromCoordinates = (x: number, y: number) => {
-    // This is a simplified approach - in a real implementation you'd want more sophisticated drop zone detection
-    const element = document.elementFromPoint(x, y);
-    const dropZone = element?.closest('[data-drop-zone]');
-    if (dropZone) {
-      const column = dropZone.getAttribute('data-column');
-      const swimLane = dropZone.getAttribute('data-swim-lane');
-      return { column, swimLane };
-    }
-    return null;
-  };
-
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
@@ -277,12 +300,22 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     const draggedItem = findItemById(active.id as string);
     if (!draggedItem) return;
 
-    // Get target location from the over element's data attributes
-    const overElement = over.data.current;
-    const targetColumn = overElement?.sortable?.containerId?.split('-')[0];
-    const targetSwimLane = overElement?.sortable?.containerId?.split('-')[1];
+    // Get target location from the droppable's data
+    const overData = over.data.current;
+    const targetColumn = overData?.column;
+    const targetSwimLane = overData?.swimLane;
 
-    if (!targetColumn || !targetSwimLane) return;
+    if (!targetColumn || !targetSwimLane) {
+      console.log('No valid drop target found', { targetColumn, targetSwimLane });
+      return;
+    }
+
+    // Don't do anything if dropping in the same location
+    if (draggedItem.column === targetColumn && draggedItem.swimLane === targetSwimLane) {
+      return;
+    }
+
+    console.log(`Attempting to move item ${draggedItem.id} from ${draggedItem.column}/${draggedItem.swimLane} to ${targetColumn}/${targetSwimLane}`);
 
     // Create before drop event
     const beforeDropEvent: BeforeDropEvent = {
@@ -393,23 +426,18 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   
                   {columns.map((column) => {
                     const cellItems = getItemsForCell(column.id, swimLane.id);
+                    const isColumnCollapsed = collapsedColumns.has(column.id);
+                    const isSwimLaneCollapsed = collapsedSwimLanes.has(swimLane.id);
+                    
                     return (
-                      <Box
+                      <DroppableCell
                         key={`${swimLane.id}-${column.id}`}
-                        data-drop-zone
-                        data-column={column.id}
-                        data-swim-lane={swimLane.id}
-                        sx={{
-                          width: collapsedColumns.has(column.id) ? 64 : 'calc((100% - 200px) / ' + columns.length + ')',
-                          p: collapsedColumns.has(column.id) ? 1 : 2,
-                          minHeight: collapsedSwimLanes.has(swimLane.id) ? 64 : 200,
-                          borderRight: 1,
-                          borderColor: 'divider',
-                          bgcolor: 'grey.50',
-                          transition: 'all 0.3s',
-                        }}
+                        columnId={column.id}
+                        swimLaneId={swimLane.id}
+                        items={cellItems}
+                        isCollapsed={isColumnCollapsed}
                       >
-                        {!collapsedSwimLanes.has(swimLane.id) && !collapsedColumns.has(column.id) && (
+                        {!isSwimLaneCollapsed && !isColumnCollapsed && (
                           <Box sx={{ height: '100%' }}>
                             {cellItems.length > 0 && (
                               <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
@@ -419,7 +447,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             <VirtualizedItemList cellItems={cellItems} />
                           </Box>
                         )}
-                      </Box>
+                      </DroppableCell>
                     );
                   })}
                 </Box>
