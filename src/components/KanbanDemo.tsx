@@ -1,6 +1,6 @@
 
 import React from 'react';
-import KanbanBoard, { KanbanItem, KanbanColumn, KanbanSwimLane } from './KanbanBoard';
+import KanbanBoard, { KanbanItem, KanbanColumn, KanbanSwimLane, BeforeDropEvent, DropEvent } from './KanbanBoard';
 
 const KanbanDemo = () => {
   const columns: KanbanColumn[] = [
@@ -71,12 +71,48 @@ const KanbanDemo = () => {
     // Here you would typically update your state or make an API call
   };
 
+  const handleBeforeDrop = (event: BeforeDropEvent): boolean => {
+    console.log('Before drop event:', event);
+    
+    // Example: Prevent dropping high priority items in the 'done' column
+    const item = items.find(i => i.id === event.itemId);
+    if (item?.priority === 'high' && event.targetColumn === 'done') {
+      console.log('High priority items cannot be moved to done');
+      event.canDrop = false;
+      return false;
+    }
+    
+    // Example: Prevent moving items between different teams (swimlanes)
+    if (event.sourceSwimLane !== event.targetSwimLane) {
+      console.log('Items cannot be moved between different teams');
+      event.canDrop = false;
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleDrop = (event: DropEvent) => {
+    console.log('Drop event:', event);
+    
+    // Here you would update your database or state management
+    // Example API call:
+    // updateItemInDatabase(event.itemId, {
+    //   column: event.targetColumn,
+    //   swimLane: event.targetSwimLane
+    // });
+    
+    console.log(`Item ${event.item.title} moved from ${event.sourceColumn}/${event.sourceSwimLane} to ${event.targetColumn}/${event.targetSwimLane}`);
+  };
+
   return (
     <KanbanBoard
       items={items}
       columns={columns}
       swimLanes={swimLanes}
       onItemMove={handleItemMove}
+      onBeforeDrop={handleBeforeDrop}
+      onDrop={handleDrop}
     />
   );
 };
